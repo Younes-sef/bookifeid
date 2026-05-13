@@ -19,6 +19,9 @@ import { cn } from "@/lib/utils";
 import { UploadSchema } from "@/lib/zod";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { checkBookExists, uploadBook, saveBookSegments } from "@/lib/action/book.actions";
+import { parsePDFFile } from "@/lib/utils";
 
 type FormValues = z.infer<typeof UploadSchema>;
 
@@ -38,6 +41,8 @@ export default function UploadForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  const { userId } = useAuth();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(UploadSchema),
@@ -49,14 +54,85 @@ export default function UploadForm() {
   });
 
   const onSubmit = async (data: FormValues) => {
-    
+    if (!userId) {
+      toast.error("You must be logged in to upload a book.");
+      return;
+    }
 
-    setIsSubmitting(true);
-    // Simulate submission
-    setTimeout(() => {
+    try {
+      setIsSubmitting(true);
+      
+      // 1. Check if book already exists
+      const existsCheck = await checkBookExists(data.title);
+      if (existsCheck.exists) {
+        toast.error("A book with this title already exists.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      toast.info("Extracting text and generating cover...");
+      
+      // 2. Parse PDF on the client
+      const parsedData = await parsePDFFile(data.pdfFile);
+      
+      // 3. Prepare FormData
+      const formData = new FormData();
+      formData.append("file", data.pdfFile);
+      formData.append("title", data.title);
+      formData.append("author", data.author);
+      formData.append("persona", data.persona);
+      formData.append("clerkId", userId);
+      formData.append("fileSize", data.pdfFile.size.toString());
+
+      // Use user-provided cover or generated one
+      if (data.coverImage) {
+        formData.append("coverImage", data.coverImage);
+      } else if (parsedData.cover) {
+        // Convert base64 to Blob
+        const res = await fetch(parsedData.cover);
+        const blob = await res.blob();
+        formData.append("coverImage", blob, "cover.png");
+      }
+
+      toast.info("Uploading files...");
+
+      // 4. Upload book metadata and files
+      const uploadRes = await uploadBook(formData);
+      
+      if (!uploadRes.success || !uploadRes.book) {
+        throw new Error(uploadRes.error || "Upload failed");
+      }
+
+      toast.info("Saving text segments...");
+
+      // 5. Save segments in chunks to avoid payload limits
+      const chunkSize = 100;
+      for (let i = 0; i < parsedData.content.length; i += chunkSize) {
+        const chunk = parsedData.content.slice(i, i + chunkSize);
+        await saveBookSegments(uploadRes.book._id, userId, chunk);
+      }
+
+      toast.info("Generating AI brain for your book (this might take a moment)...");
+      
+      // 6. Generate embeddings for the saved segments
+      // We import it dynamically here or at the top of the file. Let's assume it's imported at the top.
+      const { generateEmbeddingsForBook } = await import("@/lib/action/embeddings.actions");
+      const embedRes = await generateEmbeddingsForBook(uploadRes.book._id);
+      
+      if (!embedRes.success) {
+        toast.error("Book uploaded, but failed to generate some AI embeddings.");
+      } else {
+        toast.success("Book uploaded and AI is ready!");
+      }
+
+      router.push(`/books/${uploadRes.book.slug}`);
+      
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to synthesize book. Please try again.");
+    } finally {
       setIsSubmitting(false);
-      console.log("Submitted:", data);
-    }, 3000);
+    }
   };
 
   const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {

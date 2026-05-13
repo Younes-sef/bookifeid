@@ -1,0 +1,16 @@
+{
+  "id": "ct2bzcjZ0CiAVutb",
+  "messages": [
+    {
+      "role": "user",
+      "content": "resume it",
+      "id": "jzYsOyCAfJag1k38"
+    },
+    {
+      "role": "user",
+      "content": "hi",
+      "id": "I5ejnjRmnNynSobB"
+    }
+  ],
+  "trigger": "submit-message"
+}
