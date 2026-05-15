@@ -1,6 +1,7 @@
 'use server'
 
-import { put } from '@vercel/blob';
+import { put, del } from '@vercel/blob';
+import { auth } from '@clerk/nextjs/server';
 import { connectToDatabase } from '@/database/mongoose';
 import Book from '@/database/models/book.model';
 import BookSegment from '@/database/models/book-segment.model';
@@ -121,13 +122,73 @@ export const getBookBySlug = async (slug: string) => {
   }
 }
 
-export const getAllBooks = async () => {
+export const getAllBooks = async (clerkId: string) => {
   try {
     await connectToDatabase();
-    const books = await Book.find().sort({ createdAt: -1 }).lean();
+    const books = await Book.find({ clerkId }).sort({ createdAt: -1 }).lean();
     return serializeData(books);
   } catch (error) {
     console.error("Error fetching all books", error);
     return [];
+  }
+}
+
+/**
+ * Deletes a book and all related data owned by the currently logged-in user.
+ *
+ * Step 1 — Ownership check:
+ *   We call auth() on the server to get the real Clerk userId.
+ *   Then we do Book.findOne({ _id: bookId, clerkId: userId }).
+ *   Passing BOTH conditions means MongoDB only returns the doc if the book
+ *   truly belongs to the requesting user — this prevents one user from
+ *   deleting another user's books even if they guess the ID.
+ *
+ * Step 2 — Delete segments:
+ *   Every BookSegment has a bookId foreign key.
+ *   We wipe them all first so MongoDB is never left with orphaned embedding vectors.
+ *
+ * Step 3 — Delete blobs:
+ *   We collected the public PDF URL and cover URL when uploading (stored in fileURL / coverURL).
+ *   Vercel Blob's del() accepts an array of URLs and removes them from object storage.
+ *   We filter out empty strings so we don't send a delete request for books with no cover.
+ *
+ * Step 4 — Delete the book document:
+ *   Only after segments and blobs are gone do we remove the root Book doc.
+ *   This order matters: if a step fails partway, the book doc still exists
+ *   and the user can retry (rather than having a ghost doc with no files).
+ */
+export async function deleteBook(bookId: string) {
+  try {
+    // Step 1 — Verify the caller is logged in and owns this book
+    const { userId } = await auth();
+    if (!userId) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    await connectToDatabase();
+
+    // findOne with BOTH _id and clerkId — rejects if the book belongs to another user
+    const book = await Book.findOne({ _id: bookId, clerkId: userId }).lean();
+    if (!book) {
+      return { success: false, error: 'Book not found or you do not have permission to delete it.' };
+    }
+
+    // Step 2 — Remove all vector-embedded text segments for this book
+    await BookSegment.deleteMany({ bookId });
+
+    // Step 3 — Remove files from Vercel Blob object storage
+    // We filter out falsy values so we never call del('') for books without a cover
+    const urlsToDelete = [book.fileURL, book.coverURL].filter(Boolean) as string[];
+    if (urlsToDelete.length > 0) {
+      await del(urlsToDelete);
+    }
+
+    // Step 4 — Remove the book document itself
+    await Book.findByIdAndDelete(bookId);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to delete book:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to delete book' };
   }
 }

@@ -1,10 +1,11 @@
-import Image from "next/image";
 import HeroSection from "@/components/HeroSection";
 import BookCard from "@/components/BookCard";
 import { getAllBooks } from "@/lib/action/book.actions";
+import { auth } from "@clerk/nextjs/server";
 
 export default async function Home() {
-  const books = await getAllBooks();
+  const { userId } = await auth();
+  const books = userId ? await getAllBooks(userId) : [];
 
   return (
     <main className="wrapper container">

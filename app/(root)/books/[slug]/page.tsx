@@ -1,8 +1,25 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { getBookBySlug } from "@/lib/action/book.actions";
 import { Headphones, BookOpen, Clock, Layers, Bookmark } from "lucide-react";
+import DeleteBookButton from "@/components/DeleteBookButton";
+
+/**
+ * WHY we check ownership here in the Server Component:
+ *   The book detail page is public — anyone with the URL can see the book's
+ *   title, author, and cover. But the delete button should only appear to the
+ *   person who uploaded it. We call auth() on the server to get the current
+ *   Clerk userId and compare it to book.clerkId.
+ *   If they match → render <DeleteBookButton>.
+ *   If they don't (or the user is not logged in) → the button is simply never
+ *   rendered, so there's no way to trigger the delete flow at all.
+ *
+ *   Note: Even if a clever user somehow calls deleteBook(bookId) directly,
+ *   the server action itself also calls auth() and does the same ownership
+ *   check — so there are TWO layers of protection.
+ */
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -10,20 +27,29 @@ interface PageProps {
 
 export default async function BookDetailsPage({ params }: PageProps) {
   const { slug } = await params;
-  const book = await getBookBySlug(slug);
+
+  // Run auth() and getBookBySlug in parallel — no reason to wait for one
+  // before starting the other since they are independent async operations.
+  const [{ userId }, book] = await Promise.all([
+    auth(),
+    getBookBySlug(slug),
+  ]);
 
   if (!book) {
     notFound();
   }
 
+  // True only when the logged-in user is the book's owner
+  const isOwner = userId === book.clerkId;
+
   return (
     /* Main Background: Warm parchment tone */
     <main className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto bg-[#F5F1E7]">
       
-      /* Card Container: Clean paper tone with an elegant border and subtle warm shadow */
+      {/* Card Container */}
       <div className="bg-[#FFFCF5] border border-[#E2D8C3] rounded-sm p-6 sm:p-10 shadow-[8px_8px_0px_0px_rgba(107,68,35,0.1)] flex flex-col md:flex-row gap-12 relative overflow-hidden">
         
-        {/* Subtle decorative spine/bookmark accent line on the left edge */}
+        {/* Decorative spine accent line */}
         <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#6B4423]/80"></div>
 
         {/* Left Column: Cover Image */}
@@ -42,13 +68,13 @@ export default async function BookDetailsPage({ params }: PageProps) {
         {/* Right Column: Book Details & Actions */}
         <div className="w-full md:w-2/3 flex flex-col justify-center">
           
-          {/* Badge: Looks like a small leather tag or ribbon */}
+          {/* Badge */}
           <div className="mb-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-sm bg-[#6B4423]/10 text-[#6B4423] border border-[#6B4423]/20 text-xs font-bold uppercase tracking-widest w-fit">
             <Bookmark className="w-3.5 h-3.5 fill-current" />
             Interactive Edition
           </div>
 
-          {/* Title: Using a serif font for that classic printed book feel */}
+          {/* Title */}
           <h1 className="text-4xl sm:text-5xl font-serif font-bold text-[#2C1810] leading-tight mb-3">
             {book.title}
           </h1>
@@ -57,7 +83,7 @@ export default async function BookDetailsPage({ params }: PageProps) {
             by <span className="font-semibold not-italic text-[#2C1810]">{book.author}</span>
           </p>
 
-          {/* Stats Row: Styled like debossed or inset panels */}
+          {/* Stats Row */}
           <div className="grid grid-cols-2 gap-4 mb-10 p-5 rounded-sm bg-[#F5F1E7]/50 border border-[#E2D8C3]">
             <div className="flex items-center gap-4">
               <div className="p-2.5 bg-[#FFFCF5] rounded-full shadow-sm border border-[#E2D8C3]">
@@ -82,7 +108,7 @@ export default async function BookDetailsPage({ params }: PageProps) {
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 mt-auto">
-            {/* Primary Button: Deep Walnut / Leather tone */}
+            {/* Primary: Start Conversation */}
             <Link
               href={`/books/${slug}/chat`}
               className="flex-1 flex items-center justify-center gap-2 px-8 py-4 bg-[#6B4423] hover:bg-[#4A2F1D] text-[#FFFCF5] font-semibold rounded-sm shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5"
@@ -91,7 +117,7 @@ export default async function BookDetailsPage({ params }: PageProps) {
               Start Conversation
             </Link>
 
-            {/* Secondary Button: Subtle paper tone */}
+            {/* Secondary: Read PDF */}
             <a
               href={book.fileURL}
               target="_blank"
@@ -101,6 +127,11 @@ export default async function BookDetailsPage({ params }: PageProps) {
               <BookOpen className="w-5 h-5" />
               Read PDF
             </a>
+
+            {/* Danger: Delete — only visible to the book owner */}
+            {isOwner && (
+              <DeleteBookButton bookId={book._id} bookTitle={book.title} />
+            )}
           </div>
 
         </div>

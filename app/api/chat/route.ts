@@ -1,4 +1,5 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { auth } from '@clerk/nextjs/server';
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
@@ -15,6 +16,16 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   try {
+    // ── Auth Guard ──────────────────────────────────────────────────────────
+    // auth() reads the Clerk session cookie that is attached to every request
+    // by the Clerk middleware. If the user is not logged in, userId is null
+    // and we return 401 immediately — before touching the DB or calling Gemini.
+    const { userId } = await auth();
+    if (!userId) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     const url = new URL(req.url);
     const body = await req.json();
     console.log("CHAT API REQUEST BODY:", body);
@@ -68,9 +79,14 @@ export async function POST(req: Request) {
           index: 'vector_index',
           path: 'embedding',
           queryVector: embedding,
-          numCandidates: 100, // Number of candidates to consider
-          limit: 5 // We want the top 5 most relevant segments
+          numCandidates: 100,
+          limit: 5,
+          filter: { bookId: new mongoose.Types.ObjectId(bookId) }
         }
+      },
+      {
+        // Extra safety: ensure only segments from this book are returned
+        $match: { bookId: new mongoose.Types.ObjectId(bookId) }
       },
       {
         $project: {

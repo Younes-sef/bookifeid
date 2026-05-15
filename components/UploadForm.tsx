@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import LoadingOverlay from "@/components/LoadingOverlay";
+import UploadProgressStepper, { INITIAL_STEPS, UploadStep } from "@/components/UploadProgressStepper";
 import { cn } from "@/lib/utils";
 import { UploadSchema } from "@/lib/zod";
 import { useAuth } from "@clerk/nextjs";
@@ -39,6 +39,10 @@ const femaleVoices = [
 
 export default function UploadForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // uploadSteps drives the stepper UI — each step has a status, optional progress
+  // percentage, and a detail string. We reset to INITIAL_STEPS at the start of
+  // every submission so re-uploads always begin with all steps pending.
+  const [uploadSteps, setUploadSteps] = useState<UploadStep[]>(INITIAL_STEPS);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -53,6 +57,16 @@ export default function UploadForm() {
     },
   });
 
+  // ── Helper: update a single step by id ──────────────────────────────────────
+  // Instead of replacing the whole array, we map over it and only touch the one
+  // step that changed. This keeps React re-renders minimal and ensures the other
+  // steps keep their current status (done, pending, etc.) unchanged.
+  const setStep = (id: string, updates: Partial<UploadStep>) => {
+    setUploadSteps((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
+    );
+  };
+
   const onSubmit = async (data: FormValues) => {
     if (!userId) {
       toast.error("You must be logged in to upload a book.");
@@ -60,22 +74,35 @@ export default function UploadForm() {
     }
 
     try {
-      setIsSubmitting(true);
-      
-      // 1. Check if book already exists
+      // ── Pre-flight check (before showing the stepper overlay) ────────────────
+      // We check for duplicates FIRST, before setting isSubmitting=true, so the
+      // stepper overlay doesn't flash open just to immediately close with an error.
       const existsCheck = await checkBookExists(data.title);
       if (existsCheck.exists) {
         toast.error("A book with this title already exists.");
-        setIsSubmitting(false);
         return;
       }
 
-      toast.info("Extracting text and generating cover...");
-      
-      // 2. Parse PDF on the client
+      // Reset all steps to their initial pending state, then show the overlay.
+      setUploadSteps(INITIAL_STEPS.map((s) => ({ ...s, status: "pending", progress: 0, detail: "" })));
+      setIsSubmitting(true);
+
+      // ── Step 1: Parse PDF ────────────────────────────────────────────────────
+      // parsePDFFile runs entirely in the browser (pdfjs-dist). It reads the File
+      // object, walks through each page, and returns an array of TextSegment objects.
+      // We mark this step active first, await the result, then mark it done.
+      setStep("parse", { status: "active", detail: "Scanning pages..." });
       const parsedData = await parsePDFFile(data.pdfFile);
-      
-      // 3. Prepare FormData
+      setStep("parse", {
+        status: "done",
+        detail: `${parsedData.content.length} segments extracted`,
+      });
+
+      // ── Step 2: Upload Files ─────────────────────────────────────────────────
+      // Build the FormData payload, then call the uploadBook server action which
+      // puts the PDF and cover in Vercel Blob and saves the Book doc to MongoDB.
+      setStep("upload", { status: "active", detail: "Uploading to cloud storage..." });
+
       const formData = new FormData();
       formData.append("file", data.pdfFile);
       formData.append("title", data.title);
@@ -84,53 +111,71 @@ export default function UploadForm() {
       formData.append("clerkId", userId);
       formData.append("fileSize", data.pdfFile.size.toString());
 
-      // Use user-provided cover or generated one
       if (data.coverImage) {
         formData.append("coverImage", data.coverImage);
       } else if (parsedData.cover) {
-        // Convert base64 to Blob
         const res = await fetch(parsedData.cover);
         const blob = await res.blob();
         formData.append("coverImage", blob, "cover.png");
       }
 
-      toast.info("Uploading files...");
-
-      // 4. Upload book metadata and files
       const uploadRes = await uploadBook(formData);
-      
       if (!uploadRes.success || !uploadRes.book) {
+        setStep("upload", { status: "error", detail: uploadRes.error || "Upload failed" });
         throw new Error(uploadRes.error || "Upload failed");
       }
+      setStep("upload", { status: "done", detail: "Files stored successfully" });
 
-      toast.info("Saving text segments...");
+      // ── Step 3: Save Segments ────────────────────────────────────────────────
+      // Segments are saved in chunks of 100 to avoid hitting Next.js payload limits.
+      // Because we know the total count and we loop, we can compute a real progress
+      // percentage after each chunk — this is the one step with a determinate bar.
+      setStep("segments", { status: "active", detail: "Preparing..." });
 
-      // 5. Save segments in chunks to avoid payload limits
       const chunkSize = 100;
-      for (let i = 0; i < parsedData.content.length; i += chunkSize) {
-        const chunk = parsedData.content.slice(i, i + chunkSize);
-        await saveBookSegments(uploadRes.book._id, userId, chunk);
-      }
+      const total = parsedData.content.length;
 
-      toast.info("Generating AI brain for your book (this might take a moment)...");
-      
-      // 6. Generate embeddings for the saved segments
-      // We import it dynamically here or at the top of the file. Let's assume it's imported at the top.
+      for (let i = 0; i < total; i += chunkSize) {
+        await saveBookSegments(
+          uploadRes.book._id,
+          userId,
+          parsedData.content.slice(i, i + chunkSize)
+        );
+        // After each chunk, calculate how many segments have been processed
+        // and convert to a 0–100 integer for the progress bar.
+        const processed = Math.min(i + chunkSize, total);
+        const pct = Math.round((processed / total) * 100);
+        setStep("segments", {
+          progress: pct,
+          detail: `Saved ${processed} of ${total} segments`,
+        });
+      }
+      setStep("segments", { status: "done", progress: 100, detail: `${total} segments saved` });
+
+      // ── Step 4: Generate Embeddings ──────────────────────────────────────────
+      // This runs on the server (server action). We have no per-segment callbacks
+      // from the server, so we show an indeterminate shimmer (progress stays 0).
+      // The server action processes segments sequentially with a 200ms delay each
+      // to avoid Gemini rate limits — for a 300-segment book this takes ~60 s.
+      setStep("embed", { status: "active", detail: "Training AI on your book content..." });
+
       const { generateEmbeddingsForBook } = await import("@/lib/action/embeddings.actions");
       const embedRes = await generateEmbeddingsForBook(uploadRes.book._id);
-      
+
       if (!embedRes.success) {
-        toast.error("Book uploaded, but failed to generate some AI embeddings.");
+        setStep("embed", { status: "error", detail: "Some embeddings failed" });
+        toast.warning("Book uploaded, but AI embeddings had some issues.");
       } else {
-        toast.success("Book uploaded and AI is ready!");
+        setStep("embed", { status: "done", progress: 100, detail: "AI brain is ready!" });
       }
 
+      // Brief pause so the user can see the completed state before navigating away
+      await new Promise((resolve) => setTimeout(resolve, 900));
       router.push(`/books/${uploadRes.book.slug}`);
-      
+
     } catch (error) {
       console.error("Submission error:", error);
       toast.error(error instanceof Error ? error.message : "Failed to synthesize book. Please try again.");
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -401,7 +446,7 @@ export default function UploadForm() {
         </form>
       </Form>
 
-      <LoadingOverlay isVisible={isSubmitting} />
+      <UploadProgressStepper isVisible={isSubmitting} steps={uploadSteps} />
     </div>
   );
 }
