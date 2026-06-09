@@ -737,6 +737,72 @@
   }
 }
 
+/* ===========================================
+   SKELETON SHIMMER ANIMATION
+   =========================================== */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #e8dcc8 0%,
+    #f3e9d7 40%,
+    #fdf5e8 60%,
+    #e8dcc8 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* ===========================================
+   LANDING PAGE UTILITIES
+   =========================================== */
+.landing-hero {
+  @apply min-h-screen flex flex-col items-center justify-center relative overflow-hidden;
+  background: linear-gradient(160deg, #f8f4e9 0%, #f3e4c7 50%, #efe0bb 100%);
+  padding-top: var(--navbar-height);
+}
+
+.landing-section {
+  @apply py-20 md:py-28 w-full;
+}
+
+.landing-feature-card {
+  @apply bg-white rounded-2xl p-7 flex flex-col gap-4 transition-all duration-300;
+  box-shadow: var(--shadow-soft-sm);
+
+  &:hover {
+    box-shadow: var(--shadow-soft-md);
+    transform: translateY(-6px);
+  }
+}
+
+.landing-feature-icon {
+  @apply w-12 h-12 rounded-xl flex items-center justify-center bg-[#f3e4c7] text-[#663820];
+}
+
+.landing-step-pill {
+  @apply w-10 h-10 rounded-full border-2 border-[#663820] text-[#663820] flex items-center justify-center font-bold text-lg flex-shrink-0;
+  font-family: 'IBM Plex Serif', serif;
+}
+
+.landing-cta-section {
+  @apply rounded-3xl p-10 md:p-16 text-center overflow-hidden relative;
+  background: linear-gradient(135deg, #212a3b 0%, #3d485e 100%);
+}
+
+.landing-quote-card {
+  @apply bg-white rounded-2xl p-6 md:p-8 border-l-4 border-[#663820];
+  box-shadow: var(--shadow-soft);
+}
+
 /* Clerk Auth Button Overrides */
 .cl-formButtonPrimary {
   border: none !important;
@@ -987,3 +1053,209 @@ button[data-variant='unstyled'] *,
 /*  transform: translate(-2px, -2px);*/
 /*  box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 1);*/
 /*}*/
+
+/* ===========================================
+   PRICING / SUBSCRIPTIONS PAGE
+   =========================================== */
+
+/* Hero section */
+.pricing-hero {
+  @apply relative overflow-hidden text-center pt-28 pb-12 md:pb-16;
+  background: linear-gradient(160deg, #f8f4e9 0%, #f3e4c7 55%, #efe0bb 100%);
+}
+
+/* Billing toggle wrapper */
+.billing-toggle-wrapper {
+  @apply inline-flex items-center gap-2 bg-white border border-[#e8dcc8] rounded-full p-1.5;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.06);
+  position: relative;
+}
+
+.billing-toggle-track {
+  @apply absolute inset-1.5 rounded-full pointer-events-none;
+  /* Used as a container for the sliding pill - width is split between two options */
+}
+
+.billing-toggle-pill {
+  @apply absolute top-0 left-0 h-full w-1/2 bg-[#212a3b] rounded-full pointer-events-none;
+}
+
+.billing-toggle-option {
+  @apply relative z-10 flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-colors duration-200 cursor-pointer;
+  min-width: 110px;
+  justify-content: center;
+}
+
+.billing-toggle-active {
+  @apply text-white;
+}
+
+.billing-toggle-inactive {
+  @apply text-[#3d485e] hover:text-[#212a3b];
+}
+
+.billing-save-badge {
+  @apply bg-[#663820] text-white text-xs font-bold px-2 py-0.5 rounded-full;
+}
+
+/* Pricing cards section */
+.pricing-cards-section {
+  @apply py-12 md:py-16;
+}
+
+.pricing-grid {
+  @apply grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch max-w-5xl mx-auto;
+}
+
+/* Individual plan card */
+.pricing-card {
+  @apply relative flex flex-col bg-white rounded-2xl p-7 border border-[#e8dcc8];
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.06);
+  transition: box-shadow 0.25s ease;
+  min-height: 580px;
+}
+
+.pricing-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1), 0 16px 40px rgba(0,0,0,0.1);
+}
+
+/* Popular card — brand gradient header */
+.pricing-card-popular {
+  @apply border-[#663820];
+  box-shadow: 0 4px 20px rgba(102,56,32,0.18), 0 12px 40px rgba(102,56,32,0.12);
+}
+
+.pricing-card-popular:hover {
+  box-shadow: 0 8px 32px rgba(102,56,32,0.28), 0 20px 60px rgba(102,56,32,0.16);
+}
+
+/* Badge (Most Popular / Best Value) */
+.pricing-badge {
+  @apply absolute -top-3.5 left-1/2 -translate-x-1/2 text-white text-xs font-bold px-4 py-1 rounded-full whitespace-nowrap;
+  letter-spacing: 0.04em;
+}
+
+/* Card header area */
+.pricing-card-header {
+  @apply flex items-center gap-4 mb-6 p-4 rounded-xl;
+  background: #faf7f0;
+}
+
+.pricing-card-header-popular {
+  background: linear-gradient(135deg, #663820 0%, #7a4528 100%);
+}
+
+/* Plan icon circle */
+.pricing-icon-wrap {
+  @apply flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center;
+}
+
+/* Plan name & tagline */
+.pricing-plan-name {
+  @apply font-serif text-xl font-bold leading-tight;
+}
+
+.pricing-plan-tagline {
+  @apply text-sm mt-0.5;
+}
+
+/* Price display */
+.pricing-price-block {
+  @apply mb-5;
+}
+
+.pricing-price-amount {
+  @apply font-serif text-5xl font-bold tracking-tight;
+}
+
+.pricing-price-period {
+  @apply text-[#8B7355] text-base mb-2;
+}
+
+.pricing-billed-yearly {
+  @apply text-xs text-[#8B7355] mt-1;
+}
+
+/* Divider */
+.pricing-divider {
+  @apply w-full h-px my-5;
+}
+
+/* Features list */
+.pricing-features-list {
+  @apply flex flex-col gap-3 flex-1;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pricing-feature-item {
+  @apply flex items-center gap-3;
+}
+
+.pricing-feature-icon {
+  @apply flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center;
+}
+
+.pricing-feature-icon-yes {
+  /* Accent color applied inline */
+}
+
+.pricing-feature-icon-no {
+  @apply bg-gray-100;
+}
+
+/* CTA Buttons */
+.pricing-cta-btn {
+  @apply w-full flex items-center justify-center gap-2 py-3.5 rounded-[10px] font-bold text-base transition-all duration-200 cursor-pointer;
+  font-family: 'IBM Plex Serif', serif;
+}
+
+.pricing-cta-primary {
+  @apply bg-[#212a3b] text-white hover:bg-[#3d485e];
+  box-shadow: 0 2px 8px rgba(33,42,59,0.25);
+}
+
+.pricing-cta-primary:hover {
+  box-shadow: 0 4px 16px rgba(33,42,59,0.35);
+  transform: translateY(-1px);
+}
+
+.pricing-cta-primary-popular {
+  @apply bg-[#663820] text-white hover:bg-[#7a4528];
+  box-shadow: 0 2px 8px rgba(102,56,32,0.35);
+}
+
+.pricing-cta-primary-popular:hover {
+  box-shadow: 0 4px 16px rgba(102,56,32,0.5);
+  transform: translateY(-1px);
+}
+
+.pricing-cta-secondary {
+  @apply bg-[#f3e4c7] text-[#212a3b] hover:bg-[#e8d5b3] border border-[#e8dcc8];
+}
+
+/* FAQ section */
+.faq-section {
+  @apply py-20 bg-[#f8f4e9];
+}
+
+.faq-list {
+  @apply flex flex-col divide-y divide-[#e8dcc8];
+}
+
+.faq-item {
+  @apply overflow-hidden;
+}
+
+.faq-question {
+  @apply w-full flex items-center justify-between gap-4 py-5 text-left cursor-pointer transition-colors hover:text-[#663820];
+  background: none;
+  border: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.faq-answer {
+  @apply text-[#3d485e] leading-relaxed pb-5 text-base;
+}

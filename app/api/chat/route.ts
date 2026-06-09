@@ -10,6 +10,7 @@ import { connectToDatabase } from '@/database/mongoose';
 import BookSegment from '@/database/models/book-segment.model';
 import Book from '@/database/models/book.model';
 import mongoose from 'mongoose';
+import { ratelimit } from '@/lib/upstash';
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -25,6 +26,23 @@ export async function POST(req: Request) {
       return new Response('Unauthorized', { status: 401 });
     }
     // ────────────────────────────────────────────────────────────────────────
+
+    // Rate Limiting
+    if (ratelimit) {
+      const { success, limit, reset, remaining } = await ratelimit.limit(userId);
+      if (!success) {
+        return new Response('Rate limit exceeded. Try again later.', {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': limit.toString(),
+            'X-RateLimit-Remaining': remaining.toString(),
+            'X-RateLimit-Reset': reset.toString(),
+          },
+        });
+      }
+    } else {
+      console.warn("Rate limiting is disabled because UPSTASH_REDIS_REST_URL or TOKEN is missing in .env.local");
+    }
 
     const url = new URL(req.url);
     const body = await req.json();

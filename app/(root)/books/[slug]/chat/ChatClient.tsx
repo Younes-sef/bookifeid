@@ -26,7 +26,8 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, UIMessage } from "ai";
-import { Send, User, Bot, Loader2 } from "lucide-react";
+import { Send, User, Bot } from "lucide-react";
+import ChatMessageSkeleton from "@/components/ChatMessageSkeleton";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -237,18 +238,8 @@ export default function ChatClient({
           </div>
         ))}
 
-        {/* Loading indicator */}
-        {isLoading && (
-          <div className="flex gap-4 max-w-[85%] mr-auto items-center text-[#8C7A6B]">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#6B4423] border border-[#4A2F1D] text-[#FFFCF5] flex items-center justify-center shadow-sm">
-              <Bot size={20} />
-            </div>
-            <div className="flex items-center gap-2 px-4 py-3 bg-white border border-[#E2D8C3] rounded-sm shadow-sm">
-              <Loader2 className="w-4 h-4 animate-spin text-[#6B4423]" />
-              <span className="font-serif italic text-sm">Flipping through pages…</span>
-            </div>
-          </div>
-        )}
+        {/* AI typing skeleton */}
+        {isLoading && <ChatMessageSkeleton />}
       </div>
 
       {/* Input Area */}

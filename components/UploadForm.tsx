@@ -152,21 +152,18 @@ export default function UploadForm() {
       }
       setStep("segments", { status: "done", progress: 100, detail: `${total} segments saved` });
 
-      // ── Step 4: Generate Embeddings ──────────────────────────────────────────
-      // This runs on the server (server action). We have no per-segment callbacks
-      // from the server, so we show an indeterminate shimmer (progress stays 0).
-      // The server action processes segments sequentially with a 200ms delay each
-      // to avoid Gemini rate limits — for a 300-segment book this takes ~60 s.
-      setStep("embed", { status: "active", detail: "Training AI on your book content..." });
+      // ── Step 4: Generate Embeddings (Background) ───────────────────────────
+      // We dispatch an Inngest background job to handle embeddings to avoid timeouts.
+      setStep("embed", { status: "active", detail: "Queuing book for AI processing..." });
 
       const { generateEmbeddingsForBook } = await import("@/lib/action/embeddings.actions");
       const embedRes = await generateEmbeddingsForBook(uploadRes.book._id);
 
       if (!embedRes.success) {
-        setStep("embed", { status: "error", detail: "Some embeddings failed" });
-        toast.warning("Book uploaded, but AI embeddings had some issues.");
+        setStep("embed", { status: "error", detail: "Failed to queue job" });
+        toast.warning("Book uploaded, but could not queue AI processing.");
       } else {
-        setStep("embed", { status: "done", progress: 100, detail: "AI brain is ready!" });
+        setStep("embed", { status: "done", progress: 100, detail: "Queued successfully!" });
       }
 
       // Brief pause so the user can see the completed state before navigating away

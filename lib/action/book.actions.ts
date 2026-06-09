@@ -5,6 +5,8 @@ import { auth } from '@clerk/nextjs/server';
 import { connectToDatabase } from '@/database/mongoose';
 import Book from '@/database/models/book.model';
 import BookSegment from '@/database/models/book-segment.model';
+import User from '@/database/models/user.model';
+import { PLAN_LIMITS } from '../subscription-constants';
 import { generateSlug, serializeData } from '../utils';
 import { TextSegment } from '@/types';
 
@@ -47,6 +49,24 @@ export async function uploadBook(formData: FormData) {
     const fileSize = Number(formData.get('fileSize'));
 
     const slug = generateSlug(title);
+
+    let user = await User.findOne({ clerkId });
+    if (!user) {
+      user = await User.create({ clerkId, tier: 'free' });
+    }
+
+    const tier = user.tier || 'free';
+    const limits = PLAN_LIMITS[tier as keyof typeof PLAN_LIMITS];
+
+    const maxSizeBytes = 50 * 1024 * 1024;
+    if (fileSize > maxSizeBytes) {
+      return { success: false, error: 'File size exceeds the 50MB limit.' };
+    }
+
+    const bookCount = await Book.countDocuments({ clerkId });
+    if (bookCount >= limits.maxBooks) {
+      return { success: false, error: `You have reached the limit of ${limits.maxBooks} books for the ${tier} tier. Please upgrade to upload more.` };
+    }
 
     // 1. Upload PDF to Vercel Blob
     const fileBlob = await put(`books/${slug}.pdf`, file, { access: 'public' });

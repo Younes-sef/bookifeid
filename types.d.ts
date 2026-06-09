@@ -22,6 +22,7 @@ export interface IBook extends Document {
     coverBlobKey?: string;
     fileSize: number;
     totalSegments: number;
+    status: 'processing' | 'ready' | 'failed';
     createdAt: Date;
     updatedAt: Date;
 }
@@ -80,6 +81,7 @@ export interface BookCardProps {
     author: string;
     coverURL: string;
     slug: string;
+    status?: string;
 }
 
 export interface Messages {
