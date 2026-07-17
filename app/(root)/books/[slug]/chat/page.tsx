@@ -48,7 +48,6 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
       bookId={book._id}
       bookSlug={slug}
       bookTitle={book.title}
-      bookPersona={book.persona}
       fileURL={book.fileURL}
       sessions={bookSessions}
       currentSessionId={sessionId}

@@ -23,6 +23,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { connectToDatabase } from "@/database/mongoose";
 import ChatSession from "@/database/models/chat-session.model";
+import ChatMessage from "@/database/models/chat-message.model";
 import { serializeData } from "@/lib/utils";
 
 // ── Type helpers ────────────────────────────────────────────────────────────────
@@ -65,7 +66,6 @@ export async function getChatSessions(
     await connectToDatabase();
 
     const sessions = await ChatSession.find({ bookId, clerkId: userId })
-      .select("-messages") // Exclude message content for faster sidebar loads
       .sort({ updatedAt: -1 }) // Most recently active first
       .lean();
 
@@ -95,7 +95,21 @@ export async function getChatSession(
     }).lean();
 
     if (!session) return null;
-    return serializeData(session) as SerializedChatSession;
+
+    const messages = await ChatMessage.find({ sessionId })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const fullSession = {
+      ...session,
+      messages: messages.map((m: any) => ({
+        role: m.role,
+        content: m.content,
+        createdAt: m.createdAt,
+      })),
+    };
+
+    return serializeData(fullSession) as SerializedChatSession;
   } catch (error) {
     console.error("getChatSession error:", error);
     return null;
@@ -131,15 +145,21 @@ export async function upsertChatSession(
 
     if (sessionId) {
       // ── Update existing session ──────────────────────────────────────────
-      // We only update messages + messageCount. The title is set at creation
-      // and stays fixed (we don't want it changing mid-conversation).
-      await ChatSession.findOneAndUpdate(
-        { _id: sessionId, clerkId: userId }, // ownership check
-        {
-          messages,
-          messageCount: messages.length,
-        }
-      );
+      const session = await ChatSession.findOne({ _id: sessionId, clerkId: userId });
+      if (!session) return { success: false, error: "Session not found" };
+
+      const newMessages = messages.slice(session.messageCount);
+      if (newMessages.length > 0) {
+        const messagesToInsert = newMessages.map(m => ({
+          sessionId,
+          role: m.role,
+          content: m.content
+        }));
+        await ChatMessage.insertMany(messagesToInsert);
+        
+        session.messageCount = messages.length;
+        await session.save();
+      }
       return { success: true, sessionId };
     } else {
       // ── Create new session ───────────────────────────────────────────────
@@ -147,9 +167,16 @@ export async function upsertChatSession(
         bookId,
         clerkId: userId,
         title,
-        messages,
         messageCount: messages.length,
       });
+
+      const messagesToInsert = messages.map(m => ({
+        sessionId: session._id,
+        role: m.role,
+        content: m.content
+      }));
+      await ChatMessage.insertMany(messagesToInsert);
+
       return { success: true, sessionId: session._id.toString() };
     }
   } catch (error) {
@@ -174,7 +201,10 @@ export async function deleteChatSession(
 
     await connectToDatabase();
 
-    await ChatSession.findOneAndDelete({ _id: sessionId, clerkId: userId });
+    const deleted = await ChatSession.findOneAndDelete({ _id: sessionId, clerkId: userId });
+    if (deleted) {
+      await ChatMessage.deleteMany({ sessionId });
+    }
     return { success: true };
   } catch (error) {
     console.error("deleteChatSession error:", error);

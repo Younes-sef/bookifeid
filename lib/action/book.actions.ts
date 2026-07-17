@@ -44,7 +44,7 @@ export async function uploadBook(formData: FormData) {
     const coverImage = formData.get('coverImage') as File | Blob | null;
     const title = formData.get('title') as string;
     const author = formData.get('author') as string;
-    const persona = formData.get('persona') as string;
+    const description = formData.get('description') as string;
     const clerkId = formData.get('clerkId') as string;
     const fileSize = Number(formData.get('fileSize'));
 
@@ -88,7 +88,7 @@ export async function uploadBook(formData: FormData) {
       title,
       slug,
       author,
-      persona,
+      description,
       fileURL: fileBlob.url,
       fileBlobKey: fileBlob.pathname,
       coverURL,

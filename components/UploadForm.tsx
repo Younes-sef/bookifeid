@@ -53,7 +53,6 @@ export default function UploadForm() {
     defaultValues: {
       title: "",
       author: "",
-      persona: "",
     },
   });
 
@@ -107,7 +106,6 @@ export default function UploadForm() {
       formData.append("file", data.pdfFile);
       formData.append("title", data.title);
       formData.append("author", data.author);
-      formData.append("persona", data.persona);
       formData.append("clerkId", userId);
       formData.append("fileSize", data.pdfFile.size.toString());
 
@@ -201,7 +199,6 @@ export default function UploadForm() {
 
   const pdfFile = form.watch("pdfFile");
   const coverImage = form.watch("coverImage");
-  const selectedPersona = form.watch("persona");
 
   return (
     <div className="new-book-wrapper">
@@ -301,72 +298,6 @@ export default function UploadForm() {
                     className="form-input"
                     {...field}
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Voice Selector */}
-          <FormField
-            control={form.control}
-            name="persona"
-            render={() => (
-              <FormItem>
-                <FormLabel className="form-label">
-                  Choose Assistant Voice
-                </FormLabel>
-                <FormControl>
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">
-                        Male Voices
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {maleVoices.map((voice) => (
-                          <div
-                            key={voice.id}
-                            className={cn(
-                              "voice-selector-option flex-col text-center !p-4",
-                              selectedPersona === voice.id
-                                ? "voice-selector-option-selected"
-                                : "voice-selector-option-default"
-                            )}
-                            onClick={() => form.setValue("persona", voice.id, { shouldValidate: true })}
-                          >
-                            <span className="font-bold text-lg">{voice.name}</span>
-                            <span className="text-sm text-muted-foreground mt-1">
-                              {voice.description}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">
-                        Female Voices
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {femaleVoices.map((voice) => (
-                          <div
-                            key={voice.id}
-                            className={cn(
-                              "voice-selector-option flex-col text-center !p-4",
-                              selectedPersona === voice.id
-                                ? "voice-selector-option-selected"
-                                : "voice-selector-option-default"
-                            )}
-                            onClick={() => form.setValue("persona", voice.id, { shouldValidate: true })}
-                          >
-                            <span className="font-bold text-lg">{voice.name}</span>
-                            <span className="text-sm text-muted-foreground mt-1">
-                              {voice.description}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>

@@ -11,7 +11,6 @@ interface ChatLayoutProps {
   bookId: string;
   bookSlug: string;
   bookTitle: string;
-  bookPersona?: string;
   fileURL: string;
   sessions: SerializedChatSessionMeta[];
   currentSessionId?: string;
@@ -23,7 +22,6 @@ export default function ChatLayout({
   bookId,
   bookSlug,
   bookTitle,
-  bookPersona,
   fileURL,
   sessions,
   currentSessionId,
@@ -57,15 +55,9 @@ export default function ChatLayout({
 
         {/* Book info */}
         <div className="flex-1 min-w-0">
-          <h1 className="text-base font-serif font-bold text-[#2C1810] truncate">
+          <h1 className="text-xl font-bold font-serif text-[#2C1810] flex-1 truncate">
             {bookTitle}
           </h1>
-          <p className="text-xs text-[#8C7A6B] italic">
-            Persona:{" "}
-            <span className="capitalize font-semibold text-[#6B4423]">
-              {bookPersona || "Default"}
-            </span>
-          </p>
         </div>
 
         {/* PDF Toggle button */}

@@ -94,16 +94,6 @@ export default async function BookDetailsPage({ params }: PageProps) {
                 <p className="text-xl font-serif font-bold text-[#2C1810]">{book.totalSegments.toLocaleString()}</p>
               </div>
             </div>
-
-            <div className="flex items-center gap-4">
-              <div className="p-2.5 bg-[#FFFCF5] rounded-full shadow-sm border border-[#E2D8C3]">
-                <Clock className="w-5 h-5 text-[#8B5A2B]" />
-              </div>
-              <div>
-                <p className="text-xs text-[#8C7A6B] uppercase tracking-wider font-semibold">Voice Persona</p>
-                <p className="text-xl font-serif font-bold text-[#2C1810] capitalize">{book.persona}</p>
-              </div>
-            </div>
           </div>
 
           {/* Action Buttons */}

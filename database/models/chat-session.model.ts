@@ -29,28 +29,18 @@ export interface IChatSession extends Document {
   bookId: Types.ObjectId;
   clerkId: string;
   title: string;          // Auto-generated from the first user message
-  messages: IChatMessage[];
+  summary: string;        // Periodically generated summary of older messages
   messageCount: number;   // Denormalised count for fast sidebar queries
   createdAt: Date;
   updatedAt: Date;
 }
-
-const ChatMessageSchema = new Schema<IChatMessage>(
-  {
-    role: { type: String, required: true, enum: ["user", "assistant"] },
-    content: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now },
-  },
-  { _id: false } // Sub-documents don't need their own _id
-);
 
 const ChatSessionSchema = new Schema<IChatSession>(
   {
     bookId: { type: Schema.Types.ObjectId, ref: "Book", required: true, index: true },
     clerkId: { type: String, required: true, index: true },
     title: { type: String, required: true, default: "New Conversation" },
-    messages: [ChatMessageSchema],
-    // Stored separately so the sidebar query can skip the messages array entirely
+    summary: { type: String, default: "" },
     messageCount: { type: Number, default: 0 },
   },
   { timestamps: true }

@@ -95,19 +95,22 @@ export default function ChatClient({
     ...toUIMessages(initialMessages),
   ];
 
-  const { messages, sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      headers: { "x-book-id": bookId },
-    }),
-    messages: startingMessages,
-  });
-
   const [input, setInput] = useState("");
   // Track which session we're in — null means this is a brand new unsaved session
   const [activeSessionId, setActiveSessionId] = useState<string | null>(
     initialSessionId ?? null
   );
+
+  const { messages, sendMessage, status } = useChat({
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      headers: { "x-book-id": bookId },
+    }),
+    body: {
+      sessionId: activeSessionId,
+    },
+    messages: startingMessages,
+  });
 
   const isLoading = status === "submitted" || status === "streaming";
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -230,6 +233,24 @@ export default function ChatClient({
                 {m.parts?.map((part, i) => {
                   if (part.type === "text") {
                     return <ReactMarkdown key={i}>{(part as any).text}</ReactMarkdown>;
+                  }
+                  return null;
+                })}
+                {m.toolInvocations?.map((toolInvocation: any) => {
+                  const toolCallId = toolInvocation.toolCallId;
+                  if (toolInvocation.toolName === 'webSearch') {
+                    return (
+                      <div key={toolCallId} className="flex items-center gap-2 text-sm text-[#8C7A6B] bg-[#E2D8C3]/30 p-2 rounded-md my-2 border border-[#E2D8C3]">
+                        {toolInvocation.state === 'result' ? (
+                          <span>🔍 Finished searching: "{toolInvocation.args.query}"</span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <span className="animate-pulse">⏳</span>
+                            Searching the web for: "{toolInvocation.args.query}"...
+                          </span>
+                        )}
+                      </div>
+                    );
                   }
                   return null;
                 })}
