@@ -105,10 +105,10 @@ export default function ChatClient({
     transport: new DefaultChatTransport({
       api: "/api/chat",
       headers: { "x-book-id": bookId },
+      body: {
+        sessionId: activeSessionId,
+      },
     }),
-    body: {
-      sessionId: activeSessionId,
-    },
     messages: startingMessages,
   });
 
