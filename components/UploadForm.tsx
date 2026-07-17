@@ -21,7 +21,9 @@ import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { checkBookExists, uploadBook, saveBookSegments } from "@/lib/action/book.actions";
+import { generateEmbeddingsForBook } from "@/lib/action/embeddings.actions";
 import { parsePDFFile } from "@/lib/utils";
+import { upload } from "@vercel/blob/client";
 
 type FormValues = z.infer<typeof UploadSchema>;
 
@@ -98,26 +100,43 @@ export default function UploadForm() {
       });
 
       // ── Step 2: Upload Files ─────────────────────────────────────────────────
-      // Build the FormData payload, then call the uploadBook server action which
-      // puts the PDF and cover in Vercel Blob and saves the Book doc to MongoDB.
+      // Upload PDF and cover directly to Vercel Blob from the client to bypass limits
       setStep("upload", { status: "active", detail: "Uploading to cloud storage..." });
 
-      const formData = new FormData();
-      formData.append("file", data.pdfFile);
-      formData.append("title", data.title);
-      formData.append("author", data.author);
-      formData.append("clerkId", userId);
-      formData.append("fileSize", data.pdfFile.size.toString());
+      const fileBlobRes = await upload(`books/${data.pdfFile.name}`, data.pdfFile, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
+      });
 
-      if (data.coverImage) {
-        formData.append("coverImage", data.coverImage);
-      } else if (parsedData.cover) {
+      let coverURL = "";
+      let coverBlobKey = "";
+
+      let coverFileToUpload: File | Blob | null = data.coverImage || null;
+      if (!coverFileToUpload && parsedData.cover) {
         const res = await fetch(parsedData.cover);
-        const blob = await res.blob();
-        formData.append("coverImage", blob, "cover.png");
+        coverFileToUpload = await res.blob();
       }
 
-      const uploadRes = await uploadBook(formData);
+      if (coverFileToUpload) {
+        const coverBlobRes = await upload(`covers/cover_${Date.now()}`, coverFileToUpload, {
+          access: 'public',
+          handleUploadUrl: '/api/upload',
+        });
+        coverURL = coverBlobRes.url;
+        coverBlobKey = coverBlobRes.pathname;
+      }
+
+      const uploadRes = await uploadBook({
+        title: data.title,
+        author: data.author,
+        clerkId: userId,
+        fileSize: data.pdfFile.size,
+        fileURL: fileBlobRes.url,
+        fileBlobKey: fileBlobRes.pathname,
+        coverURL,
+        coverBlobKey,
+      });
+
       if (!uploadRes.success || !uploadRes.book) {
         setStep("upload", { status: "error", detail: uploadRes.error || "Upload failed" });
         throw new Error(uploadRes.error || "Upload failed");

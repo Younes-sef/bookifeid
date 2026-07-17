@@ -36,17 +36,21 @@ export const checkBookExists = async (title: string) => {
     }
 }
 
-export async function uploadBook(formData: FormData) {
+export async function uploadBook(bookData: {
+  title: string;
+  author: string;
+  clerkId: string;
+  fileSize: number;
+  fileURL: string;
+  fileBlobKey: string;
+  coverURL: string;
+  coverBlobKey: string;
+}) {
   try {
     await connectToDatabase();
     
-    const file = formData.get('file') as File;
-    const coverImage = formData.get('coverImage') as File | Blob | null;
-    const title = formData.get('title') as string;
-    const author = formData.get('author') as string;
-    const description = formData.get('description') as string;
-    const clerkId = formData.get('clerkId') as string;
-    const fileSize = Number(formData.get('fileSize'));
+    const { title, author, clerkId, fileSize, fileURL, fileBlobKey, coverURL, coverBlobKey } = bookData;
+    const description = "";
 
     const slug = generateSlug(title);
 
@@ -68,20 +72,6 @@ export async function uploadBook(formData: FormData) {
       return { success: false, error: `You have reached the limit of ${limits.maxBooks} books for the ${tier} tier. Please upgrade to upload more.` };
     }
 
-    // 1. Upload PDF to Vercel Blob
-    const fileBlob = await put(`books/${slug}.pdf`, file, { access: 'public' });
-
-    // 2. Upload Cover Image to Vercel Blob
-    let coverURL = '';
-    let coverBlobKey = '';
-
-    if (coverImage) {
-      const coverExt = coverImage.type.split('/')[1] || 'png';
-      const coverBlobRes = await put(`covers/${slug}.${coverExt}`, coverImage, { access: 'public' });
-      coverURL = coverBlobRes.url;
-      coverBlobKey = coverBlobRes.pathname;
-    }
-
     // 3. Save metadata to MongoDB
     const newBook = await Book.create({
       clerkId,
@@ -89,8 +79,8 @@ export async function uploadBook(formData: FormData) {
       slug,
       author,
       description,
-      fileURL: fileBlob.url,
-      fileBlobKey: fileBlob.pathname,
+      fileURL,
+      fileBlobKey,
       coverURL,
       coverBlobKey,
       fileSize,

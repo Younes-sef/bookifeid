@@ -21,7 +21,7 @@ export async function generateEmbeddingsForBook(bookId: string) {
         // Run the heavy embedding processing in the background
         after(async () => {
             console.log(`[Background] Starting embedding process for book: ${bookId}`);
-            
+
             try {
                 await connectToDatabase();
 
@@ -29,11 +29,11 @@ export async function generateEmbeddingsForBook(bookId: string) {
                     bookId: bookId,
                     embedding: { $exists: false }
                 }).sort({ segmentIndex: 1 }).select('_id content segmentIndex').lean();
-                
-                const segmentsToProcess = segments.map(s => ({ 
-                    _id: s._id.toString(), 
-                    content: s.content, 
-                    segmentIndex: s.segmentIndex 
+
+                const segmentsToProcess = segments.map(s => ({
+                    _id: s._id.toString(),
+                    content: s.content,
+                    segmentIndex: s.segmentIndex
                 }));
 
                 if (segmentsToProcess.length === 0) {
@@ -42,11 +42,11 @@ export async function generateEmbeddingsForBook(bookId: string) {
                     return;
                 }
 
-                const BATCH_SIZE = 25; 
+                const BATCH_SIZE = 25;
                 for (let i = 0; i < segmentsToProcess.length; i += BATCH_SIZE) {
                     const batch = segmentsToProcess.slice(i, i + BATCH_SIZE);
                     const model = genAI.getGenerativeModel({ model: "gemini-embedding-2" });
-                         
+
                     for (const segment of batch) {
                         try {
                             const result = await model.embedContent({
@@ -54,11 +54,11 @@ export async function generateEmbeddingsForBook(bookId: string) {
                                 outputDimensionality: 768
                             } as any);
                             const embeddingValues = result.embedding.values;
-                                 
+
                             await BookSegment.findByIdAndUpdate(segment._id, {
                                 embedding: embeddingValues
                             });
-                                 
+
                             // Respect rate limits
                             await new Promise(resolve => setTimeout(resolve, 200));
                         } catch (e) {
