@@ -25,7 +25,6 @@ export interface IChatMessage {
 }
 
 export interface IChatSession extends Document {
-  _id: string;
   bookId: Types.ObjectId;
   clerkId: string;
   title: string;          // Auto-generated from the first user message

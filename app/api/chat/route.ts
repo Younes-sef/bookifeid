@@ -274,7 +274,8 @@ Please provide a concise, unified summary of the entire conversation so far to b
           parameters: z.object({
             query: z.string().describe('The search query to look up on the web.'),
           }),
-          execute: async ({ query }: any) => {
+          // @ts-ignore - The types of `duckDuckSearch` cause TS to fail matching the tool overload
+          execute: async ({ query }) => {
             try {
               console.log("Searching web for:", query);
               // safeSearch expects -2 for OFF in duck-duck-scrape

@@ -15,6 +15,7 @@ export interface IBook extends Document {
     title: string;
     slug: string;
     author: string;
+    description: string;
     fileURL: string;
     fileBlobKey: string;
     coverURL: string;

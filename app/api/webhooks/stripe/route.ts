@@ -5,7 +5,7 @@ import User from '@/database/models/user.model';
 import { headers } from 'next/headers';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24.acacia',
+  apiVersion: '2026-05-27.dahlia',
 });
 
 export async function POST(req: NextRequest) {
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
         stripeSubscriptionId: subscription.id,
         stripeCustomerId: subscription.customer as string,
         stripePriceId: priceId,
-        stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        stripeCurrentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
         tier,
       },
       { new: true, upsert: true }
@@ -66,12 +66,12 @@ export async function POST(req: NextRequest) {
   if (event.type === 'invoice.payment_succeeded') {
     const invoice = event.data.object as Stripe.Invoice;
     
-    if (!invoice.subscription) {
+    if (!(invoice as any).subscription) {
       return new NextResponse('Webhook handled', { status: 200 });
     }
 
     const subscription = await stripe.subscriptions.retrieve(
-      invoice.subscription as string
+      (invoice as any).subscription as string
     );
 
     const priceId = subscription.items.data[0].price.id;
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       { stripeSubscriptionId: subscription.id },
       {
         stripePriceId: priceId,
-        stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        stripeCurrentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
         tier,
       }
     );
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
       { stripeSubscriptionId: subscription.id },
       {
         stripePriceId: priceId,
-        stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        stripeCurrentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
         tier,
       }
     );
