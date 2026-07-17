@@ -234,24 +234,30 @@ export default function ChatClient({
                   if (part.type === "text") {
                     return <ReactMarkdown key={i}>{(part as any).text}</ReactMarkdown>;
                   }
-                  return null;
-                })}
-                {m.toolInvocations?.map((toolInvocation: any) => {
-                  const toolCallId = toolInvocation.toolCallId;
-                  if (toolInvocation.toolName === 'webSearch') {
-                    return (
-                      <div key={toolCallId} className="flex items-center gap-2 text-sm text-[#8C7A6B] bg-[#E2D8C3]/30 p-2 rounded-md my-2 border border-[#E2D8C3]">
-                        {toolInvocation.state === 'result' ? (
-                          <span>🔍 Finished searching: "{toolInvocation.args.query}"</span>
-                        ) : (
-                          <span className="flex items-center gap-2">
-                            <span className="animate-pulse">⏳</span>
-                            Searching the web for: "{toolInvocation.args.query}"...
-                          </span>
-                        )}
-                      </div>
-                    );
+                  
+                  if (
+                    part.type === "tool-invocation" || 
+                    part.type === "dynamic-tool" || 
+                    part.type.startsWith("tool-")
+                  ) {
+                    const toolInvocation = part as any;
+                    const toolCallId = toolInvocation.toolCallId;
+                    if (toolInvocation.toolName === 'webSearch') {
+                      return (
+                        <div key={toolCallId || i} className="flex items-center gap-2 text-sm text-[#8C7A6B] bg-[#E2D8C3]/30 p-2 rounded-md my-2 border border-[#E2D8C3]">
+                          {toolInvocation.state === 'result' ? (
+                            <span>🔍 Finished searching: "{toolInvocation.args?.query}"</span>
+                          ) : (
+                            <span className="flex items-center gap-2">
+                              <span className="animate-pulse">⏳</span>
+                              Searching the web for: "{toolInvocation.args?.query}"...
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }
                   }
+
                   return null;
                 })}
               </div>
