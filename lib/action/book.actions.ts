@@ -50,7 +50,7 @@ export async function uploadBook(bookData: {
     await connectToDatabase();
     
     const { title, author, clerkId, fileSize, fileURL, fileBlobKey, coverURL, coverBlobKey } = bookData;
-    const description = "";
+    const description = "No description provided.";
 
     const slug = generateSlug(title);
 

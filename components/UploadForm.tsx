@@ -103,7 +103,7 @@ export default function UploadForm() {
       // Upload PDF and cover directly to Vercel Blob from the client to bypass limits
       setStep("upload", { status: "active", detail: "Uploading to cloud storage..." });
 
-      const fileBlobRes = await upload(`books/${data.pdfFile.name}`, data.pdfFile, {
+      const fileBlobRes = await upload(`books/${Date.now()}_${data.pdfFile.name}`, data.pdfFile, {
         access: 'public',
         handleUploadUrl: '/api/upload',
       });

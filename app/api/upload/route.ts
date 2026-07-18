@@ -23,6 +23,8 @@ export async function POST(request: Request): Promise<NextResponse> {
           tokenPayload: JSON.stringify({
             userId,
           }),
+          allowOverwrite: true,
+          addRandomSuffix: false,
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
